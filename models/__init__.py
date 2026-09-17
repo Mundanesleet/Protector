@@ -1,5 +1,5 @@
-from .company import Company, CATEGORY_CHOICES
-from .prospect import Prospect, STATUS_LABELS, OPPORTUNITY_LABELS
+from .company import Company, CATEGORY_CHOICES, OPPORTUNITY_LABELS
+from .prospect import Prospect, STATUS_LABELS
 from .note import Note
 
 __all__ = [

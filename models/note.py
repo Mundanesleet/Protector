@@ -13,5 +13,13 @@ class Note(db.Model):
 
     prospect = db.relationship("Prospect", back_populates="notes")
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "prospect_id": self.prospect_id,
+            "content": self.content,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
     def __repr__(self):
         return f"<Note {self.id} prospect_id={self.prospect_id}>"

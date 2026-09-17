@@ -12,14 +12,10 @@ STATUS_LABELS = {
     "not_interested": "No interesado",
 }
 
-OPPORTUNITY_LABELS = {
-    "alta": "Alta oportunidad",
-    "media": "Oportunidad media",
-    "baja": "Baja oportunidad",
-}
-
 
 class Prospect(db.Model):
+    """Gestion comercial de una Company que el usuario decidio guardar (accion 'Guardar')."""
+
     __tablename__ = "prospects"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -28,10 +24,6 @@ class Prospect(db.Model):
     )
 
     status = db.Column(db.String(20), nullable=False, default="new")
-
-    score = db.Column(db.Integer, nullable=False, default=0)
-    opportunity_level = db.Column(db.String(10), nullable=False, default="baja")
-    score_reasons = db.Column(db.Text)  # JSON: lista de razones de la clasificación
 
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
@@ -47,6 +39,19 @@ class Prospect(db.Model):
         cascade="all, delete-orphan",
         order_by="Note.created_at.desc()",
     )
+
+    def to_dict(self, include_notes=False):
+        data = {
+            "id": self.id,
+            "company_id": self.company_id,
+            "status": self.status,
+            "status_label": STATUS_LABELS.get(self.status, self.status),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if include_notes:
+            data["notes"] = [note.to_dict() for note in self.notes]
+        return data
 
     def __repr__(self):
         return f"<Prospect {self.id} company_id={self.company_id} status={self.status!r}>"
