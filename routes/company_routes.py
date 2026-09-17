@@ -74,3 +74,18 @@ def save_company_as_prospect(company_id):
     if prospect is None:
         return jsonify({"error": "Empresa no encontrada"}), 404
     return jsonify({"data": prospect.to_dict()})
+
+
+@company_bp.route("/companies/<int:company_id>", methods=["PUT"])
+def edit_company(company_id):
+    payload = request.get_json(silent=True) or {}
+
+    try:
+        company = company_service.update_company(company_id, payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    if company is None:
+        return jsonify({"error": "Empresa no encontrada"}), 404
+
+    return jsonify({"data": company.to_dict()})

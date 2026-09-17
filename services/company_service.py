@@ -4,13 +4,31 @@ No depende de Flask: recibe/devuelve modelos y dicts planos, para que las
 rutas (routes/) se queden como controladores delgados.
 """
 
+import json
+
 from database import db
 from models import Company, Note, Prospect
+from models.company import CATEGORY_CHOICES
 from models.prospect import STATUS_LABELS
+from services.prospect_scoring_service import score_company
 
 # Estados que cuentan como "contactados" en el dashboard: hay alguna
 # interaccion registrada pero todavia no es cliente ni se descarto.
 CONTACTED_STATUSES = ("contacted", "responded", "interested", "quote_sent")
+
+# Campos que el usuario puede corregir/enriquecer manualmente (accion "Editar").
+# No incluye source/source_id/coordenadas: esos vienen de la fuente de datos.
+EDITABLE_COMPANY_FIELDS = (
+    "name",
+    "address",
+    "city",
+    "department",
+    "phone",
+    "email",
+    "website",
+    "category",
+    "description",
+)
 
 
 def save_companies(company_dicts):
@@ -19,6 +37,7 @@ def save_companies(company_dicts):
     updated = 0
 
     for data in company_dicts:
+        _apply_scoring(data)
         existing = _find_existing(data)
         if existing:
             _apply_updates(existing, data)
@@ -51,6 +70,13 @@ def _find_existing(data):
     return None
 
 
+def _apply_scoring(data):
+    score, level, reasons = score_company(data)
+    data["score"] = score
+    data["opportunity_level"] = level
+    data["score_reasons"] = json.dumps(reasons, ensure_ascii=False)
+
+
 def _apply_updates(company, data):
     for field in (
         "name",
@@ -68,6 +94,12 @@ def _apply_updates(company, data):
         value = data.get(field)
         if value:
             setattr(company, field, value)
+
+    # Se recalculan siempre (incluye score=0), a diferencia de los campos de
+    # arriba que solo se sobreescriben cuando la nueva busqueda trae dato.
+    company.score = data["score"]
+    company.opportunity_level = data["opportunity_level"]
+    company.score_reasons = data["score_reasons"]
 
 
 def list_companies(filters=None):
@@ -94,6 +126,30 @@ def list_companies(filters=None):
         query = query.filter(Company.name.ilike(f"%{filters['q']}%"))
 
     return query.order_by(Company.discovered_at.desc()).all()
+
+
+def update_company(company_id, fields):
+    """Edicion manual de una Company (accion 'Editar'). Recalcula el score."""
+    company = Company.query.get(company_id)
+    if company is None:
+        return None
+
+    if "category" in fields and fields["category"] not in CATEGORY_CHOICES:
+        raise ValueError(f"Categoria no valida: {fields['category']}")
+
+    for field in EDITABLE_COMPANY_FIELDS:
+        if field in fields:
+            setattr(company, field, fields[field])
+
+    score, level, reasons = score_company(
+        {"category": company.category, "name": company.name, "description": company.description}
+    )
+    company.score = score
+    company.opportunity_level = level
+    company.score_reasons = json.dumps(reasons, ensure_ascii=False)
+
+    db.session.commit()
+    return company
 
 
 def save_as_prospect(company_id):
