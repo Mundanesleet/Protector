@@ -24,6 +24,21 @@ OPPORTUNITY_LABELS = {
     "baja": "Baja oportunidad",
 }
 
+CATEGORY_LABELS = {
+    "bodega": "Bodega",
+    "logistica": "Logística",
+    "distribuidora": "Distribuidora",
+    "alimentos": "Alimentos",
+    "bebidas": "Bebidas",
+    "mayorista": "Mayorista",
+    "industria": "Industria",
+    "importadora": "Importadora",
+    "comercializadora": "Comercializadora",
+    "transporte": "Transporte",
+    "almacenamiento": "Almacenamiento",
+    "otra": "Otra",
+}
+
 
 class Company(db.Model):
     """Datos de la empresa tal como se encontraron en la fuente (OSM, etc.).

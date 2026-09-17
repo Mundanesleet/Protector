@@ -1,1 +1,128 @@
-/* Estilos propios de Prospector C&D — se completa en la fase de dashboard */
+:root {
+    --opportunity-alta: #198754;
+    --opportunity-media: #fd7e14;
+    --opportunity-baja: #6c757d;
+    --sidebar-width: 240px;
+}
+
+body {
+    background-color: #f4f6f9;
+}
+
+.app-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: var(--sidebar-width);
+    flex-shrink: 0;
+    background-color: #101828;
+    color: #fff;
+}
+
+.sidebar .brand {
+    color: #fff;
+}
+
+.sidebar .nav-link {
+    color: #cbd5e1;
+}
+
+.sidebar .nav-link.active {
+    background-color: #2563eb;
+    color: #fff;
+}
+
+.main-content {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.topbar {
+    height: 56px;
+    background-color: #fff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.stat-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid #cbd5e1;
+}
+
+.stat-card.border-opportunity-alta { border-left-color: var(--opportunity-alta); }
+.stat-card.border-opportunity-media { border-left-color: var(--opportunity-media); }
+.stat-card.border-opportunity-baja { border-left-color: var(--opportunity-baja); }
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.stat-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.75rem;
+    opacity: 0.5;
+}
+
+.text-opportunity-alta { color: var(--opportunity-alta); }
+.text-opportunity-media { color: var(--opportunity-media); }
+.text-opportunity-baja { color: var(--opportunity-baja); }
+
+.badge-opportunity {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.badge-opportunity-alta { background-color: rgba(25, 135, 84, 0.12); color: var(--opportunity-alta); }
+.badge-opportunity-media { background-color: rgba(253, 126, 20, 0.12); color: var(--opportunity-media); }
+.badge-opportunity-baja { background-color: rgba(108, 117, 125, 0.12); color: var(--opportunity-baja); }
+
+.badge-status {
+    display: inline-block;
+    padding: 0.3rem 0.55rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.badge-status-new { background-color: #e5e7eb; color: #374151; }
+.badge-status-active { background-color: #dbeafe; color: #1d4ed8; }
+.badge-status-customer { background-color: #dcfce7; color: #15803d; }
+.badge-status-inactive { background-color: #fee2e2; color: #b91c1c; }
+
+#map {
+    height: 380px;
+    width: 100%;
+}
+
+.score-reasons {
+    list-style: none;
+    padding-left: 0;
+}
+
+.score-reasons li {
+    padding: 0.25rem 0;
+    border-bottom: 1px dashed #e5e7eb;
+}
+
+.score-reasons li:last-child {
+    border-bottom: none;
+}
