@@ -13,6 +13,8 @@ def create_app():
     from routes.main_routes import main_bp
     app.register_blueprint(main_bp)
 
+    from models import Company, Note, Prospect  # noqa: F401 registra los modelos en SQLAlchemy
+
     with app.app_context():
         db.create_all()
 
