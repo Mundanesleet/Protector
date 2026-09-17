@@ -61,7 +61,6 @@
             q: document.getElementById("filterQ").value.trim(),
             city: document.getElementById("filterCity").value,
             category: document.getElementById("filterCategory").value,
-            opportunity_level: document.getElementById("filterOpportunity").value,
             status: document.getElementById("filterStatus").value,
         };
         if (document.getElementById("filterHasPhone").checked) filters.has_phone = "true";
@@ -74,6 +73,8 @@
         Object.entries(currentFilters()).forEach(([key, value]) => {
             if (value) params.set(key, value);
         });
+
+        document.getElementById("exportButton").href = `/api/companies/export?${params.toString()}`;
 
         const res = await Prospector.apiRequest(`/api/companies?${params.toString()}`);
         const companies = res.data;
@@ -88,7 +89,7 @@
             const message = hasActiveFilters
                 ? "No se encontraron empresas con estos filtros."
                 : "Todavía no hay empresas. Usa el buscador para encontrar empresas.";
-            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">${message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">${message}</td></tr>`;
             return;
         }
 
@@ -99,8 +100,9 @@
                 <td>${Prospector.escapeHtml(c.name)}</td>
                 <td>${Prospector.escapeHtml(c.city || "-")}</td>
                 <td>${Prospector.escapeHtml(state.categoryLabels[c.category] || c.category || "-")}</td>
-                <td>${Prospector.opportunityBadgeHtml(c.opportunity_level)}</td>
                 <td>${Prospector.escapeHtml(c.phone || "-")}</td>
+                <td>${Prospector.escapeHtml(c.email || "-")}</td>
+                <td>${c.website ? `<a href="${Prospector.escapeHtml(c.website)}" target="_blank" rel="noopener noreferrer">sitio</a>` : "-"}</td>
                 <td>${c.prospect ? Prospector.statusBadgeHtml(c.prospect.status) : '<span class="text-muted small">Sin guardar</span>'}</td>
                 <td class="text-end text-nowrap">
                     <button class="btn btn-sm btn-outline-secondary" data-action="view" data-id="${c.id}" title="Ver"><i class="bi bi-eye"></i></button>
@@ -113,12 +115,6 @@
     }
 
     function renderCompanyDetail(company) {
-        const reasonsHtml = company.score_reasons.length
-            ? `<ul class="score-reasons">${company.score_reasons
-                  .map((r) => `<li>${Prospector.escapeHtml(r)}</li>`)
-                  .join("")}</ul>`
-            : '<p class="text-muted">No se detectaron señales relevantes en los datos disponibles.</p>';
-
         const prospect = company.prospect;
         let gestionHtml;
 
@@ -179,11 +175,7 @@
                 </tbody>
             </table>
 
-            <h6 class="text-uppercase text-muted small">Análisis</h6>
-            <div class="mb-2">${Prospector.opportunityBadgeHtml(company.opportunity_level)} <span class="text-muted small">(puntaje: ${company.score}/100)</span></div>
-            ${reasonsHtml}
-
-            <h6 class="text-uppercase text-muted small mt-4">Gestión comercial</h6>
+            <h6 class="text-uppercase text-muted small">Gestión comercial</h6>
             ${gestionHtml}
         `;
     }
@@ -289,7 +281,7 @@
             } else if (btn.dataset.action === "save") saveCompanyAsProspect(id);
         });
 
-        ["filterCity", "filterCategory", "filterOpportunity", "filterStatus", "filterHasPhone", "filterHasWebsite"].forEach(
+        ["filterCity", "filterCategory", "filterStatus", "filterHasPhone", "filterHasWebsite"].forEach(
             (id) => document.getElementById(id).addEventListener("change", loadCompanies)
         );
 

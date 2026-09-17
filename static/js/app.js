@@ -22,12 +22,6 @@ const Prospector = (() => {
         return body;
     }
 
-    const OPPORTUNITY_INFO = {
-        alta: { label: "Alta oportunidad", className: "badge-opportunity-alta", icon: "bi-arrow-up-circle-fill" },
-        media: { label: "Oportunidad media", className: "badge-opportunity-media", icon: "bi-dash-circle-fill" },
-        baja: { label: "Baja oportunidad", className: "badge-opportunity-baja", icon: "bi-arrow-down-circle-fill" },
-    };
-
     const STATUS_INFO = {
         new: { label: "Sin contactar", className: "badge-status-new" },
         contacted: { label: "Contactado", className: "badge-status-active" },
@@ -42,11 +36,6 @@ const Prospector = (() => {
         const div = document.createElement("div");
         div.textContent = value == null ? "" : String(value);
         return div.innerHTML;
-    }
-
-    function opportunityBadgeHtml(level) {
-        const info = OPPORTUNITY_INFO[level] || OPPORTUNITY_INFO.baja;
-        return `<span class="badge-opportunity ${info.className}"><i class="bi ${info.icon}"></i> ${info.label}</span>`;
     }
 
     function statusBadgeHtml(status) {
@@ -64,11 +53,9 @@ const Prospector = (() => {
 
     return {
         apiRequest,
-        opportunityBadgeHtml,
         statusBadgeHtml,
         showAlert,
         escapeHtml,
-        OPPORTUNITY_INFO,
         STATUS_INFO,
     };
 })();

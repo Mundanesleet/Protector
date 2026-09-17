@@ -1,16 +1,18 @@
-"""Logica de negocio sobre Company/Prospect/Note: deduplicacion, filtros y stats.
+"""Logica de negocio sobre Company/Prospect/Note: deduplicacion, filtros,
+exportacion a Excel y estadisticas.
 
 No depende de Flask: recibe/devuelve modelos y dicts planos, para que las
 rutas (routes/) se queden como controladores delgados.
 """
 
-import json
+import io
+
+from openpyxl import Workbook
 
 from database import db
 from models import Company, Note, Prospect
-from models.company import CATEGORY_CHOICES
+from models.company import CATEGORY_CHOICES, CATEGORY_LABELS
 from models.prospect import STATUS_LABELS
-from services.prospect_scoring_service import score_company
 
 # Estados que cuentan como "contactados" en el dashboard: hay alguna
 # interaccion registrada pero todavia no es cliente ni se descarto.
@@ -37,7 +39,6 @@ def save_companies(company_dicts):
     updated = 0
 
     for data in company_dicts:
-        _apply_scoring(data)
         existing = _find_existing(data)
         if existing:
             _apply_updates(existing, data)
@@ -70,13 +71,6 @@ def _find_existing(data):
     return None
 
 
-def _apply_scoring(data):
-    score, level, reasons = score_company(data)
-    data["score"] = score
-    data["opportunity_level"] = level
-    data["score_reasons"] = json.dumps(reasons, ensure_ascii=False)
-
-
 def _apply_updates(company, data):
     for field in (
         "name",
@@ -95,12 +89,6 @@ def _apply_updates(company, data):
         if value:
             setattr(company, field, value)
 
-    # Se recalculan siempre (incluye score=0), a diferencia de los campos de
-    # arriba que solo se sobreescriben cuando la nueva busqueda trae dato.
-    company.score = data["score"]
-    company.opportunity_level = data["opportunity_level"]
-    company.score_reasons = data["score_reasons"]
-
 
 def list_companies(filters=None):
     filters = filters or {}
@@ -110,8 +98,6 @@ def list_companies(filters=None):
         query = query.filter(Company.city == filters["city"])
     if filters.get("category"):
         query = query.filter(Company.category == filters["category"])
-    if filters.get("opportunity_level"):
-        query = query.filter(Company.opportunity_level == filters["opportunity_level"])
     if filters.get("status"):
         query = query.join(Prospect).filter(Prospect.status == filters["status"])
     if filters.get("has_phone") is True:
@@ -129,7 +115,7 @@ def list_companies(filters=None):
 
 
 def update_company(company_id, fields):
-    """Edicion manual de una Company (accion 'Editar'). Recalcula el score."""
+    """Edicion manual de una Company (accion 'Editar')."""
     company = Company.query.get(company_id)
     if company is None:
         return None
@@ -140,13 +126,6 @@ def update_company(company_id, fields):
     for field in EDITABLE_COMPANY_FIELDS:
         if field in fields:
             setattr(company, field, fields[field])
-
-    score, level, reasons = score_company(
-        {"category": company.category, "name": company.name, "description": company.description}
-    )
-    company.score = score
-    company.opportunity_level = level
-    company.score_reasons = json.dumps(reasons, ensure_ascii=False)
 
     db.session.commit()
     return company
@@ -193,10 +172,6 @@ def add_prospect_note(prospect_id, content):
 
 def get_stats():
     total_companies = Company.query.count()
-    alta = Company.query.filter_by(opportunity_level="alta").count()
-    media = Company.query.filter_by(opportunity_level="media").count()
-    baja = Company.query.filter_by(opportunity_level="baja").count()
-
     total_prospects = Prospect.query.count()
     pendientes = Prospect.query.filter_by(status="new").count()
     contactados = Prospect.query.filter(Prospect.status.in_(CONTACTED_STATUSES)).count()
@@ -204,11 +179,64 @@ def get_stats():
 
     return {
         "total_companies": total_companies,
-        "alta_oportunidad": alta,
-        "media_oportunidad": media,
-        "baja_oportunidad": baja,
         "total_prospects": total_prospects,
         "pendientes": pendientes,
         "contactados": contactados,
         "clientes": clientes,
     }
+
+
+def export_companies_workbook(filters=None):
+    """Genera un .xlsx en memoria con las empresas (respeta los mismos filtros
+    que list_companies), para que el usuario tenga siempre un respaldo
+    portable de los datos fuera de la base de datos."""
+    companies = list_companies(filters)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Prospectos"
+
+    headers = [
+        "Nombre",
+        "Ciudad",
+        "Departamento",
+        "Categoría",
+        "Dirección",
+        "Teléfono",
+        "Email",
+        "Website",
+        "Estado comercial",
+        "Fuente",
+        "Descubierta",
+    ]
+    ws.append(headers)
+
+    for company in companies:
+        status_label = "Sin guardar"
+        if company.prospect:
+            status_label = STATUS_LABELS.get(company.prospect.status, company.prospect.status)
+
+        ws.append(
+            [
+                company.name,
+                company.city or "",
+                company.department or "",
+                CATEGORY_LABELS.get(company.category, company.category or ""),
+                company.address or "",
+                company.phone or "",
+                company.email or "",
+                company.website or "",
+                status_label,
+                company.source,
+                company.discovered_at.strftime("%Y-%m-%d %H:%M") if company.discovered_at else "",
+            ]
+        )
+
+    for column_cells in ws.columns:
+        length = max(len(str(cell.value)) if cell.value is not None else 0 for cell in column_cells)
+        ws.column_dimensions[column_cells[0].column_letter].width = min(max(length + 2, 12), 45)
+
+    stream = io.BytesIO()
+    wb.save(stream)
+    stream.seek(0)
+    return stream

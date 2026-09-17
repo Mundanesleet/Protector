@@ -22,13 +22,12 @@ const ProspectorMap = (() => {
 
         withCoords.forEach((company) => {
             const marker = L.marker([company.latitude, company.longitude]);
-            const info = Prospector.OPPORTUNITY_INFO[company.opportunity_level] || Prospector.OPPORTUNITY_INFO.baja;
 
             const popupContent = document.createElement("div");
             popupContent.innerHTML = `
                 <div class="fw-semibold mb-1">${Prospector.escapeHtml(company.name)}</div>
                 <div class="small text-muted mb-1">${Prospector.escapeHtml(company.city || "")}</div>
-                <div class="small mb-2">${Prospector.escapeHtml(company.category || "")} · ${info.label}</div>
+                <div class="small mb-2">${Prospector.escapeHtml(company.category || "")}</div>
             `;
             const viewButton = document.createElement("button");
             viewButton.className = "btn btn-sm btn-primary";

@@ -7,8 +7,8 @@
 <div id="dashboardAlert"></div>
 
 <!-- Estadisticas -->
-<div class="row g-3 mb-2">
-    <div class="col-6 col-lg-3">
+<div class="row row-cols-2 row-cols-lg-5 g-3 mb-4">
+    <div class="col">
         <div class="card stat-card">
             <div class="card-body">
                 <div class="stat-label">Total empresas</div>
@@ -17,37 +17,7 @@
             </div>
         </div>
     </div>
-    <div class="col-6 col-lg-3">
-        <div class="card stat-card border-opportunity-alta">
-            <div class="card-body">
-                <div class="stat-label">Alta oportunidad</div>
-                <div class="stat-value" data-stat="alta_oportunidad">0</div>
-                <div class="stat-icon text-opportunity-alta"><i class="bi bi-arrow-up-circle-fill"></i></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="card stat-card border-opportunity-media">
-            <div class="card-body">
-                <div class="stat-label">Oportunidad media</div>
-                <div class="stat-value" data-stat="media_oportunidad">0</div>
-                <div class="stat-icon text-opportunity-media"><i class="bi bi-dash-circle-fill"></i></div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="card stat-card border-opportunity-baja">
-            <div class="card-body">
-                <div class="stat-label">Baja oportunidad</div>
-                <div class="stat-value" data-stat="baja_oportunidad">0</div>
-                <div class="stat-icon text-opportunity-baja"><i class="bi bi-arrow-down-circle-fill"></i></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-6 col-lg-4">
+    <div class="col">
         <div class="card stat-card">
             <div class="card-body">
                 <div class="stat-label">Prospectos guardados</div>
@@ -56,7 +26,7 @@
             </div>
         </div>
     </div>
-    <div class="col-6 col-lg-4">
+    <div class="col">
         <div class="card stat-card">
             <div class="card-body">
                 <div class="stat-label">Pendientes de contacto</div>
@@ -65,12 +35,21 @@
             </div>
         </div>
     </div>
-    <div class="col-6 col-lg-4">
+    <div class="col">
         <div class="card stat-card">
             <div class="card-body">
                 <div class="stat-label">Contactados</div>
                 <div class="stat-value" data-stat="contactados">0</div>
                 <div class="stat-icon text-secondary"><i class="bi bi-chat-dots-fill"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="stat-label">Clientes</div>
+                <div class="stat-value" data-stat="clientes">0</div>
+                <div class="stat-icon text-secondary"><i class="bi bi-person-check-fill"></i></div>
             </div>
         </div>
     </div>
@@ -113,30 +92,25 @@
 
 <!-- Tabla y filtros -->
 <div class="card">
-    <div class="card-header bg-white">
-        <i class="bi bi-table me-1"></i> Empresas
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table me-1"></i> Empresas</span>
+        <a href="/api/companies/export" id="exportButton" class="btn btn-sm btn-outline-success">
+            <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
+        </a>
     </div>
     <div class="card-body">
         <div class="row g-2 mb-3">
             <div class="col-md-3">
                 <input type="text" class="form-control" id="filterQ" placeholder="Buscar por nombre...">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <select class="form-select" id="filterCity">
                     <option value="">Todas las ciudades</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <select class="form-select" id="filterCategory">
                     <option value="">Todas las categorías</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <select class="form-select" id="filterOpportunity">
-                    <option value="">Toda oportunidad</option>
-                    <option value="alta">Alta oportunidad</option>
-                    <option value="media">Oportunidad media</option>
-                    <option value="baja">Baja oportunidad</option>
                 </select>
             </div>
             <div class="col-md-3">
@@ -163,15 +137,16 @@
                         <th>Empresa</th>
                         <th>Ciudad</th>
                         <th>Categoría</th>
-                        <th>Oportunidad</th>
                         <th>Teléfono</th>
+                        <th>Email</th>
+                        <th>Website</th>
                         <th>Estado</th>
                         <th class="text-end">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="companiesTableBody">
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
+                        <td colspan="8" class="text-center text-muted py-4">
                             Usa el buscador para encontrar empresas.
                         </td>
                     </tr>

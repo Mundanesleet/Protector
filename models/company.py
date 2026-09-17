@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timezone
 
 from database import db
@@ -18,12 +17,6 @@ CATEGORY_CHOICES = [
     "otra",
 ]
 
-OPPORTUNITY_LABELS = {
-    "alta": "Alta oportunidad",
-    "media": "Oportunidad media",
-    "baja": "Baja oportunidad",
-}
-
 CATEGORY_LABELS = {
     "bodega": "Bodega",
     "logistica": "Logística",
@@ -41,12 +34,7 @@ CATEGORY_LABELS = {
 
 
 class Company(db.Model):
-    """Datos de la empresa tal como se encontraron en la fuente (OSM, etc.).
-
-    El puntaje de oportunidad vive aqui (no en Prospect) porque se calcula a
-    partir de senales de la empresa (categoria, descripcion) y debe verse en
-    toda empresa encontrada, la haya guardado el usuario como prospecto o no.
-    """
+    """Datos de la empresa tal como se encontraron en la fuente (OSM, etc.)."""
 
     __tablename__ = "companies"
     __table_args__ = (
@@ -70,12 +58,6 @@ class Company(db.Model):
 
     source = db.Column(db.String(50), nullable=False)
     source_id = db.Column(db.String(100))
-
-    # Clasificacion de oportunidad (reglas en prospect_scoring_service.py, fase 11).
-    # Por defecto queda en 0/baja hasta que ese servicio exista.
-    score = db.Column(db.Integer, nullable=False, default=0)
-    opportunity_level = db.Column(db.String(10), nullable=False, default="baja")
-    score_reasons = db.Column(db.Text)  # JSON: lista de razones de la clasificacion
 
     discovered_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
@@ -107,12 +89,6 @@ class Company(db.Model):
             "longitude": self.longitude,
             "source": self.source,
             "source_id": self.source_id,
-            "score": self.score,
-            "opportunity_level": self.opportunity_level,
-            "opportunity_label": OPPORTUNITY_LABELS.get(
-                self.opportunity_level, self.opportunity_level
-            ),
-            "score_reasons": json.loads(self.score_reasons) if self.score_reasons else [],
             "discovered_at": self.discovered_at.isoformat() if self.discovered_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "prospect": self.prospect.to_dict() if self.prospect else None,
