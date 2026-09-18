@@ -4,7 +4,7 @@ from flask import Flask, jsonify
 from werkzeug.exceptions import HTTPException
 
 from config import Config
-from database import db
+from database import db, ensure_schema_migrations
 
 
 def create_app():
@@ -32,6 +32,11 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        ensure_schema_migrations()
+
+        from services.company_service import backfill_chain_keys
+
+        backfill_chain_keys()
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(exc):

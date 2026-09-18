@@ -60,6 +60,12 @@ def list_companies():
     return jsonify({"data": [company.to_dict() for company in companies]})
 
 
+@company_bp.route("/companies/cleanup-chains", methods=["POST"])
+def cleanup_chains():
+    removed = company_service.cleanup_chains()
+    return jsonify({"data": {"removed": removed}})
+
+
 @company_bp.route("/companies/export")
 def export_companies():
     stream = company_service.export_companies_workbook(_filters_from_query_args())

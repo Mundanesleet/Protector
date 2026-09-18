@@ -59,6 +59,18 @@ class Company(db.Model):
     source = db.Column(db.String(50), nullable=False)
     source_id = db.Column(db.String(100))
 
+    # Nombre normalizado (sin acentos/numeros/sufijos de sucursal) usado para
+    # detectar cadenas/franquicias con muchas ubicaciones (ej. Carulla, UNO)
+    # y excluirlas: no son buenos prospectos, ya tienen su propia logistica.
+    chain_key = db.Column(db.String(255), index=True)
+
+    # Enriquecimiento con IA (busqueda web), opcional y bajo demanda por
+    # empresa desde la ficha -- ver services/enrichment_service.py.
+    facebook_url = db.Column(db.String(255))
+    linkedin_url = db.Column(db.String(255))
+    enrichment_notes = db.Column(db.Text)
+    enriched_at = db.Column(db.DateTime)
+
     discovered_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
         db.DateTime,
@@ -89,6 +101,10 @@ class Company(db.Model):
             "longitude": self.longitude,
             "source": self.source,
             "source_id": self.source_id,
+            "facebook_url": self.facebook_url,
+            "linkedin_url": self.linkedin_url,
+            "enrichment_notes": self.enrichment_notes,
+            "enriched_at": self.enriched_at.isoformat() if self.enriched_at else None,
             "discovered_at": self.discovered_at.isoformat() if self.discovered_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
             "prospect": self.prospect.to_dict() if self.prospect else None,

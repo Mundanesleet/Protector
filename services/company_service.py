@@ -6,6 +6,9 @@ rutas (routes/) se queden como controladores delgados.
 """
 
 import io
+import re
+import unicodedata
+from collections import Counter
 
 from openpyxl import Workbook
 
@@ -18,6 +21,23 @@ from services import contact_finder_service
 # Estados que cuentan como "contactados" en el dashboard: hay alguna
 # interaccion registrada pero todavia no es cliente ni se descarto.
 CONTACTED_STATUSES = ("contacted", "responded", "interested", "quote_sent")
+
+# 3+ ubicaciones con el mismo nombre normalizado = cadena/franquicia (ej.
+# Carulla, UNO): se excluyen por completo, no solo se deduplican, porque una
+# cadena grande ya tiene su propia logistica y no es un buen prospecto.
+CHAIN_MIN_LOCATIONS = 3
+
+_CHAIN_SUFFIX_WORDS = (
+    "sucursal",
+    "sede",
+    "local",
+    "tienda",
+    "punto de venta",
+    "pdv",
+    "no",
+    "nro",
+    "numero",
+)
 
 # Campos que el usuario puede corregir/enriquecer manualmente (accion "Editar").
 # No incluye source/source_id/coordenadas: esos vienen de la fuente de datos.
@@ -35,11 +55,43 @@ EDITABLE_COMPANY_FIELDS = (
 
 
 def save_companies(company_dicts):
-    """Inserta o actualiza Companies evitando duplicados. Devuelve un resumen."""
+    """Inserta o actualiza Companies evitando duplicados. Excluye cadenas o
+    franquicias con muchas ubicaciones (ej. Carulla, UNO). Devuelve un resumen.
+    """
     created = 0
     updated = 0
+    skipped_chains = 0
 
     for data in company_dicts:
+        data["chain_key"] = _normalize_chain_name(data["name"])
+
+    batch_counts = Counter(data["chain_key"] for data in company_dicts)
+    existing_counts = dict(
+        db.session.query(Company.chain_key, db.func.count(Company.id))
+        .filter(Company.chain_key.in_(batch_counts.keys()))
+        .group_by(Company.chain_key)
+        .all()
+    )
+
+    chains_to_exclude = {
+        chain_key
+        for chain_key, count in batch_counts.items()
+        if count + existing_counts.get(chain_key, 0) >= CHAIN_MIN_LOCATIONS
+    }
+
+    if chains_to_exclude:
+        # Tambien se quitan las que ya se habian guardado de busquedas
+        # anteriores, salvo que el usuario ya las haya guardado como
+        # prospecto (eso se preserva, es trabajo del usuario).
+        Company.query.filter(
+            Company.chain_key.in_(chains_to_exclude), ~Company.prospect.has()
+        ).delete(synchronize_session=False)
+
+    for data in company_dicts:
+        if data["chain_key"] in chains_to_exclude:
+            skipped_chains += 1
+            continue
+
         existing = _find_existing(data)
         if existing:
             _apply_updates(existing, data)
@@ -49,7 +101,59 @@ def save_companies(company_dicts):
             created += 1
 
     db.session.commit()
-    return {"found": len(company_dicts), "created": created, "updated": updated}
+    return {
+        "found": len(company_dicts),
+        "created": created,
+        "updated": updated,
+        "skipped_chains": skipped_chains,
+    }
+
+
+def backfill_chain_keys():
+    """Calcula chain_key para filas guardadas antes de que existiera esta
+    columna. Se llama al arrancar la app; es barato y no hace nada si ya
+    todas las filas la tienen."""
+    pending = Company.query.filter(Company.chain_key.is_(None)).all()
+    for company in pending:
+        company.chain_key = _normalize_chain_name(company.name)
+    if pending:
+        db.session.commit()
+    return len(pending)
+
+
+def cleanup_chains():
+    """Limpieza puntual (boton en el dashboard) de cadenas que ya estaban
+    guardadas de busquedas anteriores a este cambio."""
+    backfill_chain_keys()
+
+    chain_keys = [
+        chain_key
+        for chain_key, count in (
+            db.session.query(Company.chain_key, db.func.count(Company.id))
+            .group_by(Company.chain_key)
+            .all()
+        )
+        if chain_key and count >= CHAIN_MIN_LOCATIONS
+    ]
+
+    removed = 0
+    for chain_key in chain_keys:
+        removed += Company.query.filter(
+            Company.chain_key == chain_key, ~Company.prospect.has()
+        ).delete(synchronize_session=False)
+
+    db.session.commit()
+    return removed
+
+
+def _normalize_chain_name(name):
+    text = unicodedata.normalize("NFKD", name.lower())
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = re.sub(r"[^a-z0-9\s]", " ", text)
+    for word in _CHAIN_SUFFIX_WORDS:
+        text = re.sub(rf"\b{word}\b", " ", text)
+    text = re.sub(r"\d+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _find_existing(data):

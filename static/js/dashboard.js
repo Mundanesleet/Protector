@@ -339,6 +339,24 @@
         }
     }
 
+    async function cleanupChains() {
+        const button = document.getElementById("cleanupChainsButton");
+        button.disabled = true;
+        try {
+            const res = await Prospector.apiRequest("/api/companies/cleanup-chains", { method: "POST" });
+            Prospector.showAlert(
+                alertBox(),
+                `Se quitaron ${res.data.removed} empresas de cadenas/franquicias con muchas ubicaciones.`,
+                "success"
+            );
+            await Promise.all([loadCompanies(), loadStats()]);
+        } catch (err) {
+            Prospector.showAlert(alertBox(), err.message);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
     function wireStaticEvents() {
         document.getElementById("companiesTableBody").addEventListener("click", (e) => {
             const btn = e.target.closest("button[data-action]");
@@ -351,6 +369,8 @@
                 if (company) openEditModal(company);
             } else if (btn.dataset.action === "save") saveCompanyAsProspect(id);
         });
+
+        document.getElementById("cleanupChainsButton").addEventListener("click", cleanupChains);
 
         ["filterCity", "filterCategory", "filterStatus", "filterHasPhone", "filterHasWebsite"].forEach(
             (id) => document.getElementById(id).addEventListener("change", loadCompanies)
@@ -383,10 +403,13 @@
                     method: "POST",
                     body: JSON.stringify({ zones, categories }),
                 });
-                const { found, created, updated } = res.data;
+                const { found, created, updated, skipped_chains } = res.data;
+                const chainsMsg = skipped_chains
+                    ? ` Se excluyeron ${skipped_chains} por ser sucursales de una cadena/franquicia.`
+                    : "";
                 Prospector.showAlert(
                     alertBox(),
-                    `Búsqueda completada: ${found} empresas encontradas (${created} nuevas, ${updated} actualizadas).`,
+                    `Búsqueda completada: ${found} empresas encontradas (${created} nuevas, ${updated} actualizadas).${chainsMsg}`,
                     "success"
                 );
                 await Promise.all([loadCompanies(), loadStats()]);

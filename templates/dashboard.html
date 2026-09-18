@@ -94,9 +94,14 @@
 <div class="card">
     <div class="card-header bg-white d-flex justify-content-between align-items-center">
         <span><i class="bi bi-table me-1"></i> Empresas</span>
-        <a href="/api/companies/export" id="exportButton" class="btn btn-sm btn-outline-success">
-            <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
-        </a>
+        <div class="d-flex gap-2">
+            <button type="button" id="cleanupChainsButton" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-funnel"></i> Limpiar cadenas duplicadas
+            </button>
+            <a href="/api/companies/export" id="exportButton" class="btn btn-sm btn-outline-success">
+                <i class="bi bi-file-earmark-excel"></i> Exportar a Excel
+            </a>
+        </div>
     </div>
     <div class="card-body">
         <div class="row g-2 mb-3">
