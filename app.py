@@ -40,4 +40,6 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True)
+    # host 0.0.0.0: accesible desde otros dispositivos en la misma red local
+    # (ej. probar desde el celular), no solo desde esta misma maquina.
+    app.run(debug=True, host="0.0.0.0")
