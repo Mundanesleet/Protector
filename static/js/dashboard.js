@@ -386,10 +386,15 @@
             e.preventDefault();
             const zones = Array.from(document.querySelectorAll('input[name="zone"]:checked')).map((el) => el.value);
             const categories = Array.from(document.querySelectorAll('input[name="category"]:checked')).map((el) => el.value);
+            const sources = Array.from(document.querySelectorAll('input[name="source"]:checked')).map((el) => el.value);
 
             alertBox().innerHTML = "";
             if (zones.length === 0 || categories.length === 0) {
                 Prospector.showAlert(alertBox(), "Selecciona al menos una zona y una categoría.", "warning");
+                return;
+            }
+            if (sources.length === 0) {
+                Prospector.showAlert(alertBox(), "Selecciona al menos una fuente.", "warning");
                 return;
             }
 
@@ -401,16 +406,17 @@
             try {
                 const res = await Prospector.apiRequest("/api/search", {
                     method: "POST",
-                    body: JSON.stringify({ zones, categories }),
+                    body: JSON.stringify({ zones, categories, sources }),
                 });
-                const { found, created, updated, skipped_chains } = res.data;
+                const { found, created, updated, skipped_chains, warnings } = res.data;
                 const chainsMsg = skipped_chains
                     ? ` Se excluyeron ${skipped_chains} por ser sucursales de una cadena/franquicia.`
                     : "";
+                const warningsMsg = warnings && warnings.length ? ` ⚠ ${warnings.join(" ")}` : "";
                 Prospector.showAlert(
                     alertBox(),
-                    `Búsqueda completada: ${found} empresas encontradas (${created} nuevas, ${updated} actualizadas).${chainsMsg}`,
-                    "success"
+                    `Búsqueda completada: ${found} empresas encontradas (${created} nuevas, ${updated} actualizadas).${chainsMsg}${warningsMsg}`,
+                    warningsMsg ? "warning" : "success"
                 );
                 await Promise.all([loadCompanies(), loadStats()]);
             } catch (err) {

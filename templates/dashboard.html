@@ -72,6 +72,17 @@
                     <div id="categoryCheckboxes" class="d-flex flex-wrap gap-3 mb-3"></div>
                 </div>
             </div>
+            <p class="fw-semibold mb-2">Fuentes</p>
+            <div class="d-flex flex-wrap gap-3 mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="overpass" id="source-overpass" name="source" checked>
+                    <label class="form-check-label" for="source-overpass">OpenStreetMap (gratis)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="google_places" id="source-google_places" name="source">
+                    <label class="form-check-label" for="source-google_places">Google Places (requiere API key)</label>
+                </div>
+            </div>
             <button type="submit" class="btn btn-primary" id="searchButton">
                 <span class="spinner-border spinner-border-sm d-none" id="searchSpinner"></span>
                 BUSCAR EMPRESAS

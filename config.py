@@ -19,3 +19,8 @@ class Config:
         "OVERPASS_API_URL", "https://overpass-api.de/api/interpreter"
     )
     OVERPASS_TIMEOUT = int(os.environ.get("OVERPASS_TIMEOUT", "30"))
+
+    # Ambas quedan vacias si no estan configuradas: los servicios que las
+    # usan detectan eso y avisan con un error claro en vez de fallar raro.
+    GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+    BRAVE_SEARCH_API_KEY = os.environ.get("BRAVE_SEARCH_API_KEY", "")

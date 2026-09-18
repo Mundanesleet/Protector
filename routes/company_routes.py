@@ -5,13 +5,28 @@ from flask import Blueprint, jsonify, request, send_file
 from models import Company
 from services import company_service
 from services.contact_finder_service import ContactFinderError
-from services.data_sources.overpass_service import InvalidSearchError, OverpassServiceError
+from services.data_sources.google_places_service import (
+    GooglePlacesNotConfiguredError,
+)
+from services.data_sources.google_places_service import (
+    GooglePlacesServiceError,
+)
+from services.data_sources.google_places_service import (
+    InvalidSearchError as GooglePlacesInvalidSearchError,
+)
+from services.data_sources.google_places_service import search as google_places_search
+from services.data_sources.overpass_service import (
+    InvalidSearchError as OverpassInvalidSearchError,
+)
+from services.data_sources.overpass_service import OverpassServiceError
 from services.data_sources.overpass_service import search as overpass_search
 from services.message_template_service import build_message
 
 logger = logging.getLogger(__name__)
 
 company_bp = Blueprint("company_api", __name__, url_prefix="/api")
+
+AVAILABLE_SOURCES = ("overpass", "google_places")
 
 
 def _filters_from_query_args():
@@ -33,24 +48,45 @@ def search_companies():
     payload = request.get_json(silent=True) or {}
     zones = payload.get("zones") or []
     categories = payload.get("categories") or []
+    sources = payload.get("sources") or ["overpass"]
 
-    try:
-        results = overpass_search(zones, categories)
-    except InvalidSearchError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except OverpassServiceError:
-        logger.exception("Fallo la busqueda en Overpass")
-        return (
-            jsonify(
-                {
-                    "error": "No fue posible consultar la fuente de datos en este "
-                    "momento. Intenta nuevamente."
-                }
-            ),
-            503,
-        )
+    if not zones:
+        return jsonify({"error": "Debes seleccionar al menos una zona"}), 400
+    if not categories:
+        return jsonify({"error": "Debes seleccionar al menos una categoría"}), 400
+
+    unknown_sources = [s for s in sources if s not in AVAILABLE_SOURCES]
+    if unknown_sources:
+        return jsonify({"error": f"Fuente(s) no soportada(s): {', '.join(unknown_sources)}"}), 400
+
+    results = []
+    warnings = []
+
+    if "overpass" in sources:
+        try:
+            results.extend(overpass_search(zones, categories))
+        except OverpassInvalidSearchError as exc:
+            warnings.append(f"OpenStreetMap: {exc}")
+        except OverpassServiceError:
+            logger.exception("Fallo la busqueda en Overpass")
+            warnings.append("No fue posible consultar OpenStreetMap en este momento.")
+
+    if "google_places" in sources:
+        try:
+            results.extend(google_places_search(zones, categories))
+        except GooglePlacesNotConfiguredError as exc:
+            warnings.append(str(exc))
+        except GooglePlacesInvalidSearchError as exc:
+            warnings.append(f"Google Places: {exc}")
+        except GooglePlacesServiceError:
+            logger.exception("Fallo la busqueda en Google Places")
+            warnings.append("No fue posible consultar Google Places en este momento.")
+
+    if not results and warnings:
+        return jsonify({"error": " ".join(warnings)}), 503
 
     summary = company_service.save_companies(results)
+    summary["warnings"] = warnings
     return jsonify({"data": summary})
 
 
