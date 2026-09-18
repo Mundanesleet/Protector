@@ -165,6 +165,23 @@
                <div id="findContactResult" class="small mb-3"></div>`
             : "";
 
+        const sourcesHtml = (company.sources || []).length
+            ? `<ul class="list-unstyled small text-muted mb-2">${company.sources
+                  .map(
+                      (s) =>
+                          `<li>${Prospector.escapeHtml(s.field_name)}: ${Prospector.escapeHtml(s.source_type)}</li>`
+                  )
+                  .join("")}</ul>`
+            : "";
+
+        const enrichHtml = `
+            <button class="btn btn-sm btn-outline-secondary mb-2" id="enrichBtn" data-company-id="${company.id}">
+                <i class="bi bi-globe"></i> Investigar (Google + Brave Search)
+            </button>
+            <div id="enrichResult" class="small mb-2"></div>
+            ${sourcesHtml}
+        `;
+
         const whatsappDigits = Prospector.toWhatsAppDigits(company.phone);
         const messageHtml = `
             <h6 class="text-uppercase text-muted small mt-4">Mensaje sugerido</h6>
@@ -191,6 +208,9 @@
                     <tr><th>Teléfono</th><td>${Prospector.escapeHtml(company.phone || "-")}</td></tr>
                     <tr><th>Email</th><td>${Prospector.escapeHtml(company.email || "-")}</td></tr>
                     <tr><th>Website</th><td>${company.website ? `<a href="${Prospector.escapeHtml(company.website)}" target="_blank" rel="noopener noreferrer">${Prospector.escapeHtml(company.website)}</a>` : "-"}</td></tr>
+                    <tr><th>Facebook</th><td>${company.facebook_url ? `<a href="${Prospector.escapeHtml(company.facebook_url)}" target="_blank" rel="noopener noreferrer">${Prospector.escapeHtml(company.facebook_url)}</a>` : "-"}</td></tr>
+                    <tr><th>LinkedIn</th><td>${company.linkedin_url ? `<a href="${Prospector.escapeHtml(company.linkedin_url)}" target="_blank" rel="noopener noreferrer">${Prospector.escapeHtml(company.linkedin_url)}</a>` : "-"}</td></tr>
+                    <tr><th>NIT</th><td>${Prospector.escapeHtml(company.nit || "-")}</td></tr>
                     <tr><th>Coordenadas</th><td>${company.latitude ?? "-"}, ${company.longitude ?? "-"}</td></tr>
                     <tr><th>Fuente</th><td>${Prospector.escapeHtml(company.source)}</td></tr>
                     <tr><th>Descubierta</th><td>${company.discovered_at ? new Date(company.discovered_at).toLocaleString("es-CO") : "-"}</td></tr>
@@ -198,6 +218,7 @@
             </table>
 
             ${findContactHtml}
+            ${enrichHtml}
             ${messageHtml}
 
             <h6 class="text-uppercase text-muted small">Gestión comercial</h6>
@@ -273,6 +294,32 @@
                 } catch (err) {
                     resultBox.innerHTML = `<span class="text-danger">${Prospector.escapeHtml(err.message)}</span>`;
                     findContactBtn.disabled = false;
+                }
+            });
+        }
+
+        const enrichBtn = document.getElementById("enrichBtn");
+        if (enrichBtn) {
+            enrichBtn.addEventListener("click", async () => {
+                const resultBox = document.getElementById("enrichResult");
+                enrichBtn.disabled = true;
+                resultBox.innerHTML = '<span class="text-muted">Investigando en Google + Brave Search...</span>';
+                try {
+                    const res = await Prospector.apiRequest(`/api/companies/${company.id}/enrich`, {
+                        method: "POST",
+                    });
+                    const fields = res.data.updated_fields;
+                    if (fields.length) {
+                        await openCompanyModal(company.id);
+                        await loadCompanies();
+                    } else {
+                        resultBox.innerHTML =
+                            '<span class="text-muted">No se encontró información nueva.</span>';
+                        enrichBtn.disabled = false;
+                    }
+                } catch (err) {
+                    resultBox.innerHTML = `<span class="text-danger">${Prospector.escapeHtml(err.message)}</span>`;
+                    enrichBtn.disabled = false;
                 }
             });
         }

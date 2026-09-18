@@ -3,8 +3,12 @@ import logging
 from flask import Blueprint, jsonify, request, send_file
 
 from models import Company
-from services import company_service
+from services import company_enrichment_service, company_service
 from services.contact_finder_service import ContactFinderError
+from services.data_sources.brave_search_service import (
+    BraveSearchNotConfiguredError,
+    BraveSearchServiceError,
+)
 from services.data_sources.google_places_service import (
     GooglePlacesNotConfiguredError,
 )
@@ -119,7 +123,7 @@ def get_company(company_id):
     if company is None:
         return jsonify({"error": "Empresa no encontrada"}), 404
 
-    data = company.to_dict()
+    data = company.to_dict(include_related=True)
     if company.prospect:
         data["prospect"] = company.prospect.to_dict(include_notes=True)
     data["suggested_message"] = build_message(company)
@@ -156,6 +160,38 @@ def find_contact(company_id):
         return jsonify({"error": "Empresa no encontrada"}), 404
 
     return jsonify({"data": {"company": company.to_dict(), "found": result}})
+
+
+@company_bp.route("/companies/<int:company_id>/enrich", methods=["POST"])
+def enrich_company(company_id):
+    company = Company.query.get(company_id)
+    if company is None:
+        return jsonify({"error": "Empresa no encontrada"}), 404
+
+    try:
+        updated_fields = company_enrichment_service.enrich_company(company)
+    except BraveSearchNotConfiguredError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except BraveSearchServiceError:
+        logger.exception("Fallo el enriquecimiento con Brave Search")
+        return (
+            jsonify(
+                {
+                    "error": "No fue posible investigar esta empresa en este momento. "
+                    "Intenta nuevamente."
+                }
+            ),
+            503,
+        )
+
+    return jsonify(
+        {
+            "data": {
+                "company": company.to_dict(include_related=True),
+                "updated_fields": updated_fields,
+            }
+        }
+    )
 
 
 @company_bp.route("/companies/<int:company_id>", methods=["PUT"])
