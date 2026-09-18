@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from database import db
 from models import Source
 from services import contact_finder_service
+from services.company_service import normalize_phone
 from services.contact_finder_service import ContactFinderError
 from services.data_sources import brave_search_service
 from services.data_sources.brave_search_service import (
@@ -23,14 +24,28 @@ from services.data_sources.brave_search_service import (
 
 logger = logging.getLogger(__name__)
 
+# No relanzar Brave Search para la misma empresa antes de este tiempo: cada
+# consulta gasta cuota real, a diferencia de contact_finder_service.
+REENRICH_COOLDOWN_HOURS = 24
 
-def enrich_company(company):
+
+def enrich_company(company, force=False):
     """Completa los campos que falten en `company`. Devuelve la lista de
     nombres de campos que se completaron (puede estar vacia)."""
     if not brave_search_service.is_configured():
         raise BraveSearchNotConfiguredError(
             "Brave Search no esta configurado (falta BRAVE_SEARCH_API_KEY en .env)"
         )
+
+    if not force and company.enriched_at:
+        elapsed_hours = (
+            datetime.now(timezone.utc) - company.enriched_at.replace(tzinfo=timezone.utc)
+        ).total_seconds() / 3600
+        if elapsed_hours < REENRICH_COOLDOWN_HOURS:
+            logger.info(
+                "Se omite reinvestigar '%s': ya se hizo hace %.1f horas", company.name, elapsed_hours
+            )
+            return []
 
     updated_fields = []
 
@@ -63,7 +78,7 @@ def enrich_company(company):
             _record_source(company, "email", "company_website", company.website)
             updated_fields.append("email")
         if contact.get("whatsapp_phone") and not company.phone:
-            company.phone = contact["whatsapp_phone"]
+            company.phone = normalize_phone(contact["whatsapp_phone"])
             _record_source(company, "phone", "company_website", company.website)
             updated_fields.append("phone")
 

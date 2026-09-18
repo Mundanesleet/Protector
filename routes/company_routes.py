@@ -168,8 +168,11 @@ def enrich_company(company_id):
     if company is None:
         return jsonify({"error": "Empresa no encontrada"}), 404
 
+    payload = request.get_json(silent=True) or {}
+    force = bool(payload.get("force"))
+
     try:
-        updated_fields = company_enrichment_service.enrich_company(company)
+        updated_fields = company_enrichment_service.enrich_company(company, force=force)
     except BraveSearchNotConfiguredError as exc:
         return jsonify({"error": str(exc)}), 400
     except BraveSearchServiceError:

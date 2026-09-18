@@ -64,6 +64,8 @@ def save_companies(company_dicts):
 
     for data in company_dicts:
         data["chain_key"] = _normalize_chain_name(data["name"])
+        if data.get("phone"):
+            data["phone"] = normalize_phone(data["phone"])
 
     batch_counts = Counter(data["chain_key"] for data in company_dicts)
     existing_counts = dict(
@@ -144,6 +146,23 @@ def cleanup_chains():
 
     db.session.commit()
     return removed
+
+
+def normalize_phone(phone):
+    """Normaliza numeros colombianos a un formato consistente ('+57 XXXXXXXXXX')
+    para que '+57 601 1234567', '6011234567' y '(601) 1234567' se guarden
+    de forma comparable en vez de como strings distintos."""
+    if not phone:
+        return None
+
+    digits = re.sub(r"\D", "", phone)
+    if not digits:
+        return None
+
+    if digits.startswith("57") and len(digits) == 12:
+        digits = digits[2:]
+
+    return f"+57 {digits}" if len(digits) == 10 else phone.strip()
 
 
 def _normalize_chain_name(name):
@@ -230,7 +249,10 @@ def update_company(company_id, fields):
 
     for field in EDITABLE_COMPANY_FIELDS:
         if field in fields:
-            setattr(company, field, fields[field])
+            value = fields[field]
+            if field == "phone" and value:
+                value = normalize_phone(value)
+            setattr(company, field, value)
 
     db.session.commit()
     return company
@@ -251,7 +273,7 @@ def find_company_contact(company_id):
     if result.get("email") and not company.email:
         company.email = result["email"]
     if result.get("whatsapp_phone") and not company.phone:
-        company.phone = result["whatsapp_phone"]
+        company.phone = normalize_phone(result["whatsapp_phone"])
     db.session.commit()
 
     return company, result
@@ -303,12 +325,21 @@ def get_stats():
     contactados = Prospect.query.filter(Prospect.status.in_(CONTACTED_STATUSES)).count()
     clientes = Prospect.query.filter_by(status="customer").count()
 
+    con_email = Company.query.filter(Company.email.isnot(None), Company.email != "").count()
+    con_website = Company.query.filter(Company.website.isnot(None), Company.website != "").count()
+    con_telefono = Company.query.filter(Company.phone.isnot(None), Company.phone != "").count()
+    enriquecidas = Company.query.filter(Company.enriched_at.isnot(None)).count()
+
     return {
         "total_companies": total_companies,
         "total_prospects": total_prospects,
         "pendientes": pendientes,
         "contactados": contactados,
         "clientes": clientes,
+        "con_email": con_email,
+        "con_website": con_website,
+        "con_telefono": con_telefono,
+        "enriquecidas": enriquecidas,
     }
 
 
