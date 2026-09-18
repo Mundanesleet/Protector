@@ -14,6 +14,13 @@ _NEW_COLUMNS = {
         ("linkedin_url", "VARCHAR(255)"),
         ("enrichment_notes", "TEXT"),
         ("enriched_at", "DATETIME"),
+        ("legal_name", "VARCHAR(255)"),
+        ("nit", "VARCHAR(30)"),
+        ("secondary_phone", "VARCHAR(50)"),
+        ("instagram_url", "VARCHAR(255)"),
+        ("has_warehouse", "BOOLEAN"),
+        ("has_distribution_center", "BOOLEAN"),
+        ("logistics_activity", "TEXT"),
     ],
 }
 
