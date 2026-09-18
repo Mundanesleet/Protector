@@ -12,6 +12,7 @@ contenido de esas paginas (punto 20 del alcance).
 """
 
 import logging
+from urllib.parse import urlparse
 
 import requests
 
@@ -39,7 +40,60 @@ NON_OFFICIAL_DOMAINS = (
     "maps.google.com",
     "yelp.com",
     "tripadvisor.com",
+    # Directorios empresariales colombianos/regionales -- encontrado en
+    # pruebas reales: Brave devolvia estos como si fueran "el sitio
+    # oficial" de la empresa.
+    "informacolombia.com",
+    "guialocal.com.co",
+    "sitios.com.co",
+    "econtactos.com",
+    "datosempresa.com",
+    "einforma.co",
+    "kompass.com",
+    "cybo.com",
+    "opencorporates.com",
+    "guiaempresarial.com.co",
+    "rues.org.co",
+    "empresite.eleconomistaamerica.co",
 )
+
+# Ademas del dominio, un directorio suele delatarse por el patron de su
+# propia URL de listado (ej. "/directorio-empresas/...", "/empresa/...").
+DIRECTORY_PATH_HINTS = (
+    "directorio-empresas",
+    "directorio_empresas",
+    "/directorio/",
+    "informacion-empresa",
+    "/empresa/",
+    "/empresas/",
+    "/company/",
+    "/companies/",
+    "guia-empresas",
+    "/listing/",
+    "/perfil-empresa",
+    "ficha-empresa",
+)
+
+
+def _looks_like_directory(url):
+    """Detecta paginas de directorio por dominio conocido o por pista en la
+    ruta. Se prueban dominios de directorios reales encontrados en pruebas
+    (informacolombia.com, colombiabz.com, mudanza.com.co...) y siguen
+    apareciendo otros nuevos -- una lista de dominios nunca alcanza. Por
+    eso ademas de esto, find_official_website() solo acepta la RAIZ del
+    dominio (sin ruta), que es una señal mucho mas confiable: un sitio
+    oficial casi siempre es 'empresa.com', un directorio casi siempre es
+    'directorio.com/algo/nombre-empresa-123'. Mejor no adivinar (rechazar
+    algo real de vez en cuando) que guardar un directorio como si fuera
+    el sitio oficial."""
+    lowered = url.lower()
+    if any(domain in lowered for domain in NON_OFFICIAL_DOMAINS):
+        return True
+    return any(hint in lowered for hint in DIRECTORY_PATH_HINTS)
+
+
+def _is_root_url(url):
+    return urlparse(url.lower()).path.strip("/") == ""
 
 
 class BraveSearchServiceError(Exception):
@@ -55,13 +109,14 @@ def is_configured():
 
 
 def find_official_website(name, city):
-    """Busca el sitio oficial de una empresa. Si el primer resultado
-    relevante es un directorio/red social, no devuelve nada en vez de
-    adivinar cual es el sitio real."""
+    """Busca el sitio oficial de una empresa. Solo acepta resultados que
+    sean la raiz del dominio y no coincidan con un directorio conocido --
+    si el primer resultado relevante no cumple eso, no devuelve nada en
+    vez de adivinar cual es el sitio real."""
     results = _search(f"{name} {city or ''} Colombia sitio oficial".strip())
     for result in results:
         url = result.get("url", "")
-        if url and not any(domain in url for domain in NON_OFFICIAL_DOMAINS):
+        if url and _is_root_url(url) and not _looks_like_directory(url):
             return {"url": url, "title": result.get("title")}
     return None
 
@@ -84,7 +139,11 @@ def _search(query, count=5):
         )
 
     headers = {"Accept": "application/json", "X-Subscription-Token": Config.BRAVE_SEARCH_API_KEY}
-    params = {"q": query, "count": count, "country": "co", "search_lang": "es"}
+    # Colombia ("CO") no esta en la lista de paises soportada por este
+    # parametro (verificado contra la API real) -- se usa "ALL" (sin
+    # restriccion) y se confia en que "Colombia" en la consulta ya guia
+    # bien los resultados.
+    params = {"q": query, "count": count, "country": "ALL", "search_lang": "es"}
 
     try:
         response = requests.get(
