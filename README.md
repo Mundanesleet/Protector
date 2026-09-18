@@ -60,7 +60,9 @@ protector/
 ├── services/
 │   ├── data_sources/
 │   │   └── overpass_service.py     # Consulta y normaliza datos de OSM
-│   └── company_service.py          # Deduplicacion, filtros, gestion comercial, export a Excel
+│   ├── company_service.py          # Deduplicacion, filtros, gestion comercial, export a Excel
+│   ├── contact_finder_service.py   # Busca email/WhatsApp en la web de una empresa (1 pagina, bajo demanda)
+│   └── message_template_service.py # Genera un mensaje sugerido y editable por categoria
 ├── templates/                      # Jinja2 + Bootstrap 5
 └── static/
     ├── css/style.css
@@ -81,6 +83,14 @@ Cada `Company` tiene una restricción única `(source, source_id)`. Si Overpass 
 
 SQLite ya es gratis (es un archivo local, igual que sería un Excel) y evita los problemas reales de usar una hoja de cálculo como almacenamiento de una app web: bloqueo del archivo si lo tienes abierto mientras la app escribe, y tener que reimplementar a mano la deduplicación y las relaciones Company↔Prospect↔Note que aquí ya resuelve el ORM. SQLite sigue siendo la fuente de verdad; el botón **Exportar a Excel** del dashboard genera un `.xlsx` bajo demanda como respaldo portable, sin ese riesgo.
 
+### Búsqueda de contacto y mensaje sugerido (sin envío automático)
+
+La mayoría de negocios pequeños no tienen email registrado en OpenStreetMap. Para eso, desde la ficha de cada empresa:
+
+- **Buscar contacto en su web**: hace una sola solicitud a la página oficial de la empresa (la misma que ya trae OSM) y extrae por texto un email o link de WhatsApp visible ahí, si lo hay. Es una consulta puntual bajo demanda del usuario, no un rastreo masivo ni recurrente. Incluye protección básica contra SSRF (rechaza IPs privadas/internas antes de conectarse).
+- **Mensaje sugerido**: un borrador personalizado según la categoría de la empresa (bodega, alimentos, distribuidora, etc.), editable libremente.
+- **Abrir en correo / Abrir en WhatsApp**: abren tu propio cliente de correo o WhatsApp Web con el destinatario y el mensaje ya cargados. El envío final siempre lo hace la persona, con un clic en su propio Gmail/WhatsApp — la app nunca envía nada por su cuenta ni guarda credenciales de correo. Esto es intencional: enviar automáticamente hubiera contradicho el alcance original del proyecto (no spam) y arriesgado bloqueos de WhatsApp o marcarse como spam.
+
 ## Uso
 
 1. Abre el dashboard (`/`) y en la sección **Buscar empresas** selecciona una o más zonas y categorías.
@@ -92,6 +102,7 @@ SQLite ya es gratis (es un archivo local, igual que sería un Excel) y evita los
    - **Editar** permite corregir o enriquecer manualmente los datos de la empresa.
 5. Desde la ficha de un prospecto puedes cambiar su estado comercial (Contactado, Interesado, Cliente, etc.) y agregar notas de seguimiento.
 6. **Exportar a Excel** (arriba de la tabla) descarga un `.xlsx` con las empresas actualmente filtradas: nombre, ciudad, categoría, dirección, teléfono, email, website y estado comercial.
+7. Si a una empresa le falta email/teléfono, en su ficha usa **Buscar contacto en su web** para intentar encontrarlos en su propia página. Luego edita el **mensaje sugerido** a tu gusto y usa **Abrir en correo**/**Abrir en WhatsApp** para enviarlo tú mismo desde tu cuenta.
 
 ## Referencia de la API
 
@@ -100,7 +111,8 @@ SQLite ya es gratis (es un archivo local, igual que sería un Excel) y evita los
 | `POST` | `/api/search` | Busca empresas en Overpass (`zones`, `categories`) y las guarda sin duplicar |
 | `GET` | `/api/companies` | Lista empresas (filtros: `city`, `category`, `status`, `q`, `has_phone`, `has_website`) |
 | `GET` | `/api/companies/export` | Descarga en `.xlsx` las empresas (mismos filtros que arriba) |
-| `GET` | `/api/companies/<id>` | Detalle de una empresa (incluye prospecto y notas si existen) |
+| `GET` | `/api/companies/<id>` | Detalle de una empresa (incluye prospecto, notas y mensaje sugerido) |
+| `POST` | `/api/companies/<id>/find-contact` | Busca email/WhatsApp en la web de la empresa |
 | `PUT` | `/api/companies/<id>` | Edición manual de una empresa |
 | `POST` | `/api/companies/<id>/save` | Guarda una empresa como prospecto (idempotente) |
 | `PUT` | `/api/prospects/<id>` | Cambia el estado comercial de un prospecto |
