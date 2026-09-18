@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, jsonify
 from werkzeug.exceptions import HTTPException
 
@@ -8,6 +10,11 @@ from database import db
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    # instance/ no se sube a git (ahi vive la base de datos SQLite); en un
+    # clon nuevo (ej. un servidor de despliegue) esta carpeta no existe y
+    # SQLite no puede crear el archivo dentro de una carpeta inexistente.
+    os.makedirs(app.instance_path, exist_ok=True)
 
     db.init_app(app)
 
