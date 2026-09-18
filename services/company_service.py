@@ -13,6 +13,7 @@ from database import db
 from models import Company, Note, Prospect
 from models.company import CATEGORY_CHOICES, CATEGORY_LABELS
 from models.prospect import STATUS_LABELS
+from services import contact_finder_service
 
 # Estados que cuentan como "contactados" en el dashboard: hay alguna
 # interaccion registrada pero todavia no es cliente ni se descarto.
@@ -129,6 +130,27 @@ def update_company(company_id, fields):
 
     db.session.commit()
     return company
+
+
+def find_company_contact(company_id):
+    """Busca email/WhatsApp en el sitio web de la empresa y completa los
+    campos que estuvieran vacios (no sobreescribe datos ya confirmados)."""
+    company = Company.query.get(company_id)
+    if company is None:
+        return None, None
+
+    if not company.website:
+        raise ValueError("Esta empresa no tiene sitio web registrado")
+
+    result = contact_finder_service.find_contact(company.website)
+
+    if result.get("email") and not company.email:
+        company.email = result["email"]
+    if result.get("whatsapp_phone") and not company.phone:
+        company.phone = result["whatsapp_phone"]
+    db.session.commit()
+
+    return company, result
 
 
 def save_as_prospect(company_id):

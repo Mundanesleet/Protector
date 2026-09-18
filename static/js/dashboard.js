@@ -158,9 +158,31 @@
                 </button>`;
         }
 
+        const findContactHtml = company.website
+            ? `<button class="btn btn-sm btn-outline-secondary mb-2" id="findContactBtn" data-company-id="${company.id}">
+                   <i class="bi bi-search"></i> Buscar contacto en su web
+               </button>
+               <div id="findContactResult" class="small mb-3"></div>`
+            : "";
+
+        const whatsappDigits = Prospector.toWhatsAppDigits(company.phone);
+        const messageHtml = `
+            <h6 class="text-uppercase text-muted small mt-4">Mensaje sugerido</h6>
+            <p class="small text-muted mb-2">Bórralo o edítalo a tu gusto antes de abrirlo — el envío lo haces tú, desde tu propio correo o WhatsApp.</p>
+            <textarea class="form-control mb-2" id="messageDraft" rows="4">${Prospector.escapeHtml(company.suggested_message || "")}</textarea>
+            <div class="d-flex gap-2 mb-4">
+                <button class="btn btn-sm btn-outline-primary" id="openEmailBtn" data-email="${Prospector.escapeHtml(company.email || "")}" ${company.email ? "" : "disabled"}>
+                    <i class="bi bi-envelope"></i> Abrir en correo
+                </button>
+                <button class="btn btn-sm btn-outline-success" id="openWhatsappBtn" data-phone="${whatsappDigits || ""}" ${whatsappDigits ? "" : "disabled"}>
+                    <i class="bi bi-whatsapp"></i> Abrir en WhatsApp
+                </button>
+            </div>
+        `;
+
         return `
             <h6 class="text-uppercase text-muted small">Información</h6>
-            <table class="table table-sm mb-4">
+            <table class="table table-sm mb-3">
                 <tbody>
                     <tr><th style="width:35%">Nombre</th><td>${Prospector.escapeHtml(company.name)}</td></tr>
                     <tr><th>Dirección</th><td>${Prospector.escapeHtml(company.address || "-")}</td></tr>
@@ -174,6 +196,9 @@
                     <tr><th>Descubierta</th><td>${company.discovered_at ? new Date(company.discovered_at).toLocaleString("es-CO") : "-"}</td></tr>
                 </tbody>
             </table>
+
+            ${findContactHtml}
+            ${messageHtml}
 
             <h6 class="text-uppercase text-muted small">Gestión comercial</h6>
             ${gestionHtml}
@@ -223,6 +248,52 @@
                 } catch (err) {
                     Prospector.showAlert(alertBox(), err.message);
                 }
+            });
+        }
+
+        const findContactBtn = document.getElementById("findContactBtn");
+        if (findContactBtn) {
+            findContactBtn.addEventListener("click", async () => {
+                const resultBox = document.getElementById("findContactResult");
+                findContactBtn.disabled = true;
+                resultBox.innerHTML = '<span class="text-muted">Buscando en su sitio web...</span>';
+                try {
+                    const res = await Prospector.apiRequest(`/api/companies/${company.id}/find-contact`, {
+                        method: "POST",
+                    });
+                    const found = res.data.found;
+                    if (found.email || found.whatsapp_phone) {
+                        await openCompanyModal(company.id);
+                        await loadCompanies();
+                    } else {
+                        resultBox.innerHTML =
+                            '<span class="text-muted">No se encontró email ni WhatsApp visible en su sitio web.</span>';
+                        findContactBtn.disabled = false;
+                    }
+                } catch (err) {
+                    resultBox.innerHTML = `<span class="text-danger">${Prospector.escapeHtml(err.message)}</span>`;
+                    findContactBtn.disabled = false;
+                }
+            });
+        }
+
+        const openEmailBtn = document.getElementById("openEmailBtn");
+        if (openEmailBtn && !openEmailBtn.disabled) {
+            openEmailBtn.addEventListener("click", () => {
+                const message = document.getElementById("messageDraft").value;
+                const subject = encodeURIComponent(`Servicios de cargue y descargue - ${company.name}`);
+                window.location.href = `mailto:${openEmailBtn.dataset.email}?subject=${subject}&body=${encodeURIComponent(message)}`;
+            });
+        }
+
+        const openWhatsappBtn = document.getElementById("openWhatsappBtn");
+        if (openWhatsappBtn && !openWhatsappBtn.disabled) {
+            openWhatsappBtn.addEventListener("click", () => {
+                const message = document.getElementById("messageDraft").value;
+                window.open(
+                    `https://wa.me/${openWhatsappBtn.dataset.phone}?text=${encodeURIComponent(message)}`,
+                    "_blank"
+                );
             });
         }
     }

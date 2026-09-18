@@ -51,11 +51,22 @@ const Prospector = (() => {
             </div>`;
     }
 
+    // Convierte un telefono guardado a formato wa.me (con codigo de pais).
+    // Si ya trae 11+ digitos se asume que incluye codigo de pais; si tiene
+    // 10 (celular colombiano tipico) se le antepone 57.
+    function toWhatsAppDigits(phone) {
+        const digits = (phone || "").replace(/\D/g, "");
+        if (!digits) return null;
+        if (digits.length === 10) return `57${digits}`;
+        return digits;
+    }
+
     return {
         apiRequest,
         statusBadgeHtml,
         showAlert,
         escapeHtml,
+        toWhatsAppDigits,
         STATUS_INFO,
     };
 })();

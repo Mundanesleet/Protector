@@ -4,8 +4,10 @@ from flask import Blueprint, jsonify, request, send_file
 
 from models import Company
 from services import company_service
+from services.contact_finder_service import ContactFinderError
 from services.data_sources.overpass_service import InvalidSearchError, OverpassServiceError
 from services.data_sources.overpass_service import search as overpass_search
+from services.message_template_service import build_message
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +80,7 @@ def get_company(company_id):
     data = company.to_dict()
     if company.prospect:
         data["prospect"] = company.prospect.to_dict(include_notes=True)
+    data["suggested_message"] = build_message(company)
     return jsonify({"data": data})
 
 
@@ -87,6 +90,30 @@ def save_company_as_prospect(company_id):
     if prospect is None:
         return jsonify({"error": "Empresa no encontrada"}), 404
     return jsonify({"data": prospect.to_dict()})
+
+
+@company_bp.route("/companies/<int:company_id>/find-contact", methods=["POST"])
+def find_contact(company_id):
+    try:
+        company, result = company_service.find_company_contact(company_id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ContactFinderError:
+        logger.exception("Fallo al buscar contacto en el sitio web")
+        return (
+            jsonify(
+                {
+                    "error": "No fue posible consultar el sitio web de la empresa. "
+                    "Intenta nuevamente."
+                }
+            ),
+            503,
+        )
+
+    if company is None:
+        return jsonify({"error": "Empresa no encontrada"}), 404
+
+    return jsonify({"data": {"company": company.to_dict(), "found": result}})
 
 
 @company_bp.route("/companies/<int:company_id>", methods=["PUT"])
